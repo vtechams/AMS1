@@ -1,0 +1,18 @@
+{
+  "name": "academy-management-system",
+  "version": "1.0.0",
+  "description": "Production-grade Academy Management System (AMS) powered by an Excel Database Core",
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "node backend/server.js",
+    "init-db": "cd backend && npm run init-db",
+    "test-e2e": "cd backend && node scripts/testE2E.js",
+    "backend": "cd backend && npm start",
+    "frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "keywords": ["ams", "academy", "excel", "react", "nodejs", "express"],
+  "author": "Antigravity Senior Full-Stack Architecture",
+  "license": "ISC"
+}
+
