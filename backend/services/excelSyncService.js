@@ -16,6 +16,7 @@ class ExcelSyncService {
   }
 
   ensureDirs() {
+    if (process.env.VERCEL) return;
     if (!fs.existsSync(this.dbDir)) fs.mkdirSync(this.dbDir, { recursive: true });
     if (!fs.existsSync(this.backupDir)) fs.mkdirSync(this.backupDir, { recursive: true });
   }
@@ -284,6 +285,12 @@ class ExcelSyncService {
 
   // Sync to disk file Academy_Database.xlsx
   async syncToDisk() {
+    if (process.env.VERCEL) {
+      // In Vercel serverless environment, local filesystem is read-only.
+      // Master data is in MongoDB Atlas, and exports are generated on the fly via streamFullWorkbook.
+      return;
+    }
+
     if (this.syncInProgress) {
       this.pendingSync = true;
       return;
