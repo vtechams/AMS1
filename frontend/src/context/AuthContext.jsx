@@ -1,63 +1,26 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import React, { createContext, useContext, useState } from 'react';
 
 const AuthContext = createContext(null);
 
+const DEFAULT_ADMIN = {
+  admin_id: 'ADM-001',
+  full_name: 'Administrator',
+  email: 'admin@ams.local',
+  role: 'SuperAdmin'
+};
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('ams_admin');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [token, setToken] = useState(() => localStorage.getItem('ams_token'));
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function verifyAuth() {
-      if (token) {
-        try {
-          const res = await api.get('/auth/me');
-          if (res.data.success) {
-            setUser(res.data.admin);
-            localStorage.setItem('ams_admin', JSON.stringify(res.data.admin));
-          }
-        } catch (err) {
-          console.warn('[AUTH VERIFY FAILED]', err.message);
-          logout();
-        }
-      }
-      setLoading(false);
-    }
-    verifyAuth();
-  }, [token]);
-
-  const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    if (res.data.success) {
-      setToken(res.data.token);
-      setUser(res.data.admin);
-      localStorage.setItem('ams_token', res.data.token);
-      localStorage.setItem('ams_admin', JSON.stringify(res.data.admin));
-      return { success: true };
-    }
-    return { success: false, message: res.data.message };
-  };
-
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('ams_token');
-    localStorage.removeItem('ams_admin');
-  };
+  const [user] = useState(DEFAULT_ADMIN);
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
-        isAuthenticated: !!token,
-        loading,
-        login,
-        logout
+        token: 'open_access_token',
+        isAuthenticated: true,
+        loading: false,
+        login: async () => ({ success: true }),
+        logout: () => {}
       }}
     >
       {children}
@@ -72,4 +35,3 @@ export function useAuth() {
   }
   return context;
 }
-

@@ -11,8 +11,18 @@
     "frontend": "cd frontend && npm run dev",
     "build:frontend": "cd frontend && npm run build"
   },
-  "keywords": ["ams", "academy", "excel", "react", "nodejs", "express"],
+  "keywords": [
+    "ams",
+    "academy",
+    "excel",
+    "react",
+    "nodejs",
+    "express"
+  ],
   "author": "Antigravity Senior Full-Stack Architecture",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.3.0",
+    "package.json": "^2.0.1"
+  }
 }
-

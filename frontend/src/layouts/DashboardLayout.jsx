@@ -15,7 +15,6 @@ import {
   PhoneCall,
   BarChart3,
   Settings,
-  LogOut,
   Menu,
   X,
   Bell,
@@ -39,15 +38,9 @@ const navItems = [
 ];
 
 export default function DashboardLayout() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const handleDownloadFullExcel = async () => {
     try {
@@ -113,7 +106,7 @@ export default function DashboardLayout() {
           })}
         </nav>
 
-        {/* User Card & Logout */}
+        {/* User Card */}
         <div className="p-3 border-t border-slate-800/80 bg-slate-950/40">
           <div className="flex items-center justify-between px-2 py-2 rounded-lg bg-slate-800/40 border border-slate-700/40">
             <div className="flex items-center gap-2 min-w-0">
@@ -125,13 +118,10 @@ export default function DashboardLayout() {
                 <p className="text-[10px] text-slate-400 truncate">{user?.email || 'admin@ams.local'}</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              title="Logout"
-              className="p-1.5 text-slate-400 hover:text-rose-400 rounded-md hover:bg-slate-700/60 transition-colors ml-1 cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-medium shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Active</span>
+            </div>
           </div>
         </div>
       </aside>
@@ -175,13 +165,10 @@ export default function DashboardLayout() {
               })}
             </nav>
             <div className="p-4 border-t border-slate-800">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 rounded-lg text-xs font-medium transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
+              <div className="flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Portal Ready • Open Access</span>
+              </div>
             </div>
           </div>
         </div>

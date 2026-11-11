@@ -1,3 +1,6 @@
+const ExcelJS = require('exceljs');
+const fs = require('fs');
+const mongoose = require('mongoose');
 const config = require('../config/config');
 const models = require('../models');
 const excelSyncService = require('./excelSyncService');
@@ -22,6 +25,10 @@ class UnifiedDatabaseService {
     };
   }
 
+  isMongoConnected() {
+    return mongoose.connection && mongoose.connection.readyState === 1;
+  }
+
   // Normalize column header to object key
   headerToKey(header) {
     if (!header) return '';
@@ -33,11 +40,57 @@ class UnifiedDatabaseService {
       .replace(/^_+|_+$/g, '');
   }
 
+  formatCellValue(cell) {
+    if (!cell || cell.value === null || cell.value === undefined) return '';
+    if (typeof cell.value === 'object') {
+      if (cell.value instanceof Date) return cell.value.toISOString().split('T')[0];
+      if (cell.value.text) return cell.value.text;
+      if (cell.value.result !== undefined) return cell.value.result.toString();
+    }
+    return cell.value.toString().trim();
+  }
+
+  async readFromExcelFile(sheetName) {
+    if (!fs.existsSync(this.dbPath)) return [];
+    const workbook = new ExcelJS.Workbook();
+    const buffer = await fs.promises.readFile(this.dbPath);
+    await workbook.xlsx.load(buffer);
+
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) return [];
+
+    const headerRow = worksheet.getRow(1);
+    const colMap = {};
+    headerRow.eachCell((cell, colNumber) => {
+      const key = this.headerToKey(cell.value);
+      if (key) colMap[colNumber] = key;
+    });
+
+    const records = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const record = {};
+      let hasData = false;
+      Object.entries(colMap).forEach(([colNum, key]) => {
+        const val = this.formatCellValue(row.getCell(parseInt(colNum, 10)));
+        record[key] = val;
+        if (val) hasData = true;
+      });
+      if (hasData) records.push(record);
+    });
+
+    return records;
+  }
+
   // Get all data for a specific sheet/collection as plain objects
   async getSheetData(sheetName) {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
-    return await cfg.model.find({}).lean();
+
+    if (this.isMongoConnected()) {
+      return await cfg.model.find({}).lean();
+    }
+    return await this.readFromExcelFile(sheetName);
   }
 
   // Find records matching optional filter function
@@ -51,7 +104,12 @@ class UnifiedDatabaseService {
   async findById(sheetName, id) {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
-    return await cfg.model.findOne({ [cfg.idField]: id }).lean();
+
+    if (this.isMongoConnected()) {
+      return await cfg.model.findOne({ [cfg.idField]: id }).lean();
+    }
+    const records = await this.readFromExcelFile(sheetName);
+    return records.find((r) => String(r[cfg.idField]).toLowerCase() === String(id).toLowerCase()) || null;
   }
 
   // Generate next sequential ID for entity
@@ -73,12 +131,12 @@ class UnifiedDatabaseService {
     return `${prefix}-${nextNum}`;
   }
 
-  // Insert a new record into MongoDB Atlas & sync to Excel
+  // Insert a new record
   async insert(sheetName, data) {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
 
-    const existingRecords = await cfg.model.find({}).lean();
+    const existingRecords = await this.getSheetData(sheetName);
     const newRecord = { ...data };
 
     if (!newRecord[cfg.idField]) {
@@ -89,15 +147,35 @@ class UnifiedDatabaseService {
     newRecord.created_at = newRecord.created_at || now;
     newRecord.updated_at = now;
 
-    const doc = await cfg.model.create(newRecord);
+    if (this.isMongoConnected()) {
+      const doc = await cfg.model.create(newRecord);
+      excelSyncService.triggerSync();
+      return doc.toObject();
+    }
 
-    // Synchronize to Excel in background
-    excelSyncService.triggerSync();
+    // Local Excel file fallback
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(this.dbPath);
+    let worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) worksheet = workbook.addWorksheet(sheetName);
 
-    return doc.toObject();
+    const headerRow = worksheet.getRow(1);
+    const colMap = {};
+    headerRow.eachCell((cell, colNum) => {
+      colMap[this.headerToKey(cell.value)] = colNum;
+    });
+
+    const newRow = worksheet.addRow([]);
+    Object.entries(newRecord).forEach(([k, v]) => {
+      if (colMap[k]) newRow.getCell(colMap[k]).value = v;
+    });
+    newRow.commit();
+    await workbook.xlsx.writeFile(this.dbPath);
+
+    return newRecord;
   }
 
-  // Update record in MongoDB Atlas & sync to Excel
+  // Update record
   async update(sheetName, id, updates) {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
@@ -108,34 +186,94 @@ class UnifiedDatabaseService {
     delete cleanUpdates.__v;
     cleanUpdates.updated_at = new Date().toISOString();
 
-    const updatedDoc = await cfg.model.findOneAndUpdate(
-      { [cfg.idField]: id },
-      { $set: cleanUpdates },
-      { new: true }
-    ).lean();
+    if (this.isMongoConnected()) {
+      const updatedDoc = await cfg.model.findOneAndUpdate(
+        { [cfg.idField]: id },
+        { $set: cleanUpdates },
+        { new: true }
+      ).lean();
 
-    if (!updatedDoc) {
-      throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+      if (!updatedDoc) {
+        throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+      }
+      excelSyncService.triggerSync();
+      return updatedDoc;
     }
 
-    // Synchronize to Excel in background
-    excelSyncService.triggerSync();
+    // Local Excel file fallback
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(this.dbPath);
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) throw new Error(`Worksheet ${sheetName} not found`);
 
-    return updatedDoc;
+    let targetRow = null;
+    const headerRow = worksheet.getRow(1);
+    const colMap = {};
+    let idColNum = null;
+
+    headerRow.eachCell((cell, colNum) => {
+      const k = this.headerToKey(cell.value);
+      if (k) {
+        colMap[k] = colNum;
+        if (k === cfg.idField) idColNum = colNum;
+      }
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      if (String(this.formatCellValue(row.getCell(idColNum))).toLowerCase() === String(id).toLowerCase()) {
+        targetRow = row;
+      }
+    });
+
+    if (!targetRow) throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+
+    Object.entries(cleanUpdates).forEach(([k, v]) => {
+      if (colMap[k]) targetRow.getCell(colMap[k]).value = v;
+    });
+    targetRow.commit();
+    await workbook.xlsx.writeFile(this.dbPath);
+
+    return await this.findById(sheetName, id);
   }
 
-  // Delete record from MongoDB Atlas & sync to Excel
+  // Delete record
   async delete(sheetName, id) {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
 
-    const res = await cfg.model.findOneAndDelete({ [cfg.idField]: id });
-    if (!res) {
-      throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+    if (this.isMongoConnected()) {
+      const res = await cfg.model.findOneAndDelete({ [cfg.idField]: id });
+      if (!res) throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+      excelSyncService.triggerSync();
+      return { success: true, message: `Record with ID ${id} deleted successfully` };
     }
 
-    // Synchronize to Excel in background
-    excelSyncService.triggerSync();
+    // Local Excel file fallback
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(this.dbPath);
+    const worksheet = workbook.getWorksheet(sheetName);
+    if (!worksheet) throw new Error(`Worksheet ${sheetName} not found`);
+
+    let targetRowNumber = null;
+    const headerRow = worksheet.getRow(1);
+    let idColNum = null;
+
+    headerRow.eachCell((cell, colNum) => {
+      if (this.headerToKey(cell.value) === cfg.idField) idColNum = colNum;
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      if (String(this.formatCellValue(row.getCell(idColNum))).toLowerCase() === String(id).toLowerCase()) {
+        targetRowNumber = rowNumber;
+      }
+    });
+
+    if (!targetRowNumber) throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+
+    worksheet.spliceRows(targetRowNumber, 1);
+    await workbook.xlsx.writeFile(this.dbPath);
 
     return { success: true, message: `Record with ID ${id} deleted successfully` };
   }

@@ -10,7 +10,7 @@ const DB_PATH = path.join(DB_DIR, DB_FILE);
 const BACKUP_DIR = path.join(ROOT_DIR, 'backups');
 
 module.exports = {
-  PORT: process.env.PORT || 5000,
+  PORT: process.env.PORT || 5050,
   JWT_SECRET: process.env.JWT_SECRET || 'ams_super_secret_jwt_key_2026_excel_secured',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb+srv://vtechdon2026_db_user:uD8sEhPq9tZnH67y@cluster0.0g4i3fd.mongodb.net/ams?retryWrites=true&w=majority&appName=Cluster0',
