@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const config = require('./config/config');
 const { initializeDatabase } = require('./scripts/initDatabase');
 
@@ -46,11 +47,26 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/backups', backupRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  let mongoStatus = 'DISCONNECTED';
+  let mongoError = null;
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+    }
+    mongoStatus = mongoose.connection.readyState === 1 ? 'CONNECTED' : 'CONNECTING';
+  } catch (err) {
+    mongoStatus = 'ERROR';
+    mongoError = err.message;
+  }
+
   res.json({
     status: 'ONLINE',
     app: 'Academy Management System (AMS)',
     version: '1.0.0',
+    mongoStatus,
+    mongoError,
+    readyState: mongoose.connection.readyState,
     excelDatabase: config.DB_PATH,
     timestamp: new Date()
   });
