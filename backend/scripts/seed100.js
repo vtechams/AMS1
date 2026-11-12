@@ -456,23 +456,40 @@ async function seed100() {
   await models.Applications.insertMany(applicationsToInsert);
   console.log(`[SEED 100] Inserted ${applicationsToInsert.length} placement applications.`);
 
-  // 6. Generate ~250 Attendance records for current month
-  console.log('[SEED 100] Generating 250 Attendance records...');
-  const attendanceDates = ['2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
+  // 6. Generate 15 Days of Attendance records for all 100 students (1,500 records)
+  console.log('[SEED 100] Generating 15 Days of Attendance records for all 100 students (1,500 total records)...');
+  const attendanceDates = [
+    '2026-11-01',
+    '2026-11-02',
+    '2026-11-03',
+    '2026-11-04',
+    '2026-11-05',
+    '2026-11-06',
+    '2026-11-07',
+    '2026-11-08',
+    '2026-11-09',
+    '2026-11-10',
+    '2026-11-11',
+    '2026-11-12', // Today!
+    '2026-11-13',
+    '2026-11-14',
+    '2026-11-15'
+  ];
   const attendanceToInsert = [];
   let attCount = 1;
 
   for (const dateStr of attendanceDates) {
-    for (let k = 0; k < 50; k++) {
+    for (let k = 0; k < studentsToInsert.length; k++) {
       const student = studentsToInsert[k];
-      const isPresent = (attCount * 17) % 10 < 9; // ~88% present rate
+      // Realistic ~88% present rate
+      const isPresent = ((attCount * 13 + k * 7) % 100) < 88;
       attendanceToInsert.push({
-        attendance_id: `ATT-${700 + attCount}`,
+        attendance_id: `ATT-${7000 + attCount}`,
         student_id: student.student_id,
         batch_id: student.batch_id,
         attendance_date: dateStr,
         attendance_status: isPresent ? 'Present' : 'Absent',
-        remarks: isPresent ? 'Attended lab & session' : 'Informed leave',
+        remarks: isPresent ? 'Attended theory & hands-on lab' : 'Informed leave',
         created_at: dateStr,
         updated_at: now
       });
@@ -481,7 +498,7 @@ async function seed100() {
   }
 
   await models.Attendance.insertMany(attendanceToInsert);
-  console.log(`[SEED 100] Inserted ${attendanceToInsert.length} daily attendance records.`);
+  console.log(`[SEED 100] Inserted ${attendanceToInsert.length} daily attendance records across 15 days.`);
 
   // 7. Generate ~10 HR Followups
   console.log('[SEED 100] Generating 10 HR followups...');
@@ -546,7 +563,8 @@ async function seed100() {
     totalStudents: studentsToInsert.length,
     totalApplications: applicationsToInsert.length,
     totalAttendance: attendanceToInsert.length,
-    message: '100 student records and related demo data populated successfully!'
+    totalAttendanceDays: attendanceDates.length,
+    message: `100 student records and 15 full days of attendance (${attendanceToInsert.length} records) populated successfully!`
   };
 }
 
@@ -564,3 +582,4 @@ if (require.main === module) {
 }
 
 module.exports = seed100;
+

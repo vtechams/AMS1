@@ -142,12 +142,12 @@ export default function SettingsPage() {
           `🎉 100 Demo Records Generated Successfully!\n\n` +
           `• ${res.data.totalStudents} Students & Enrollments\n` +
           `• ${res.data.totalApplications} Placement Applications\n` +
-          `• ${res.data.totalAttendance} Attendance Records\n\n` +
-          `You can now review the Analytics Dashboard, Student Directory, and Attendance tracking!`
+          `• ${res.data.totalAttendance} Attendance Records across 15 Days (Nov 1 - Nov 15)\n\n` +
+          `You can now review the Analytics Dashboard, Student Directory, and 15-day Attendance register!`
         );
         setMessage({
           type: 'success',
-          text: '100 sample records generated and synchronized across MongoDB Atlas and Excel.'
+          text: '100 student records and 15 days of attendance data populated and synchronized.'
         });
         fetchHealthAndBackups();
       }
