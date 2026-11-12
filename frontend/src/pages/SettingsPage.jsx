@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileSpreadsheet,
-  HardDrive
+  HardDrive,
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -22,6 +24,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [wipeLoading, setWipeLoading] = useState(false);
+  const [seedLoading, setSeedLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   // Password Update Form
@@ -89,6 +93,72 @@ export default function SettingsPage() {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Restore failed' });
     } finally {
       setRestoreLoading(false);
+    }
+  };
+
+  const handleWipeCompleteData = async () => {
+    const confirmation = window.confirm(
+      "⚠️ DANGER: COMPLETE DATA RESET ALERT!\n\n" +
+      "Are you sure you want to permanently delete ALL records from the database?\n\n" +
+      "• All Students, Courses, Batches, and Enrollments will be WIPED.\n" +
+      "• All Companies, Job Requirements, and Applications will be WIPED.\n" +
+      "• All Daily Attendance records will be WIPED.\n\n" +
+      "🛡️ An automatic safety backup snapshot will be saved in 'backups/' before wiping.\n\n" +
+      "Click OK to permanently delete all data, or Cancel to abort."
+    );
+
+    if (!confirmation) return;
+
+    try {
+      setWipeLoading(true);
+      setMessage({ type: '', text: '' });
+      const res = await api.post('/backups/wipe-all');
+      if (res.data.success) {
+        alert(`✅ Database Reset Complete!\n\n${res.data.message}\nSafety Backup: ${res.data.backup}`);
+        setMessage({
+          type: 'success',
+          text: `All records wiped. Safety snapshot saved: ${res.data.backup}`
+        });
+        fetchHealthAndBackups();
+      }
+    } catch (err) {
+      alert('Error wiping database: ' + (err.response?.data?.message || err.message));
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Failed to wipe database'
+      });
+    } finally {
+      setWipeLoading(false);
+    }
+  };
+
+  const handleSeed100Data = async () => {
+    try {
+      setSeedLoading(true);
+      setMessage({ type: '', text: '' });
+      const res = await api.post('/backups/seed-100');
+      if (res.data.success) {
+        alert(
+          `🎉 100 Demo Records Generated Successfully!\n\n` +
+          `• ${res.data.totalStudents} Students & Enrollments\n` +
+          `• ${res.data.totalApplications} Placement Applications\n` +
+          `• ${res.data.totalAttendance} Attendance Records\n\n` +
+          `You can now review the Analytics Dashboard, Student Directory, and Attendance tracking!`
+        );
+        setMessage({
+          type: 'success',
+          text: '100 sample records generated and synchronized across MongoDB Atlas and Excel.'
+        });
+        fetchHealthAndBackups();
+      }
+    } catch (err) {
+      alert('Error generating sample data: ' + (err.response?.data?.message || err.message));
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Failed to populate 100 records'
+      });
+    } finally {
+      setSeedLoading(false);
     }
   };
 
@@ -307,6 +377,68 @@ export default function SettingsPage() {
             {passLoading ? 'Updating...' : 'Update Password'}
           </button>
         </form>
+      </div>
+
+      {/* Demo & Test Data Generator */}
+      <div className="bg-indigo-50/70 rounded-2xl border-2 border-indigo-200 shadow-xs p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-indigo-950 flex items-center gap-2">
+                Demo & Test Data Generator
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-indigo-200 text-indigo-800 rounded-full">
+                  100 Records
+                </span>
+              </h3>
+              <p className="text-xs text-indigo-700 mt-1 max-w-2xl">
+                Quickly populate 100 realistic student profiles, batch enrollments, placement interview applications, and attendance logs to test dashboard analytics and charts.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleSeed100Data}
+            disabled={seedLoading}
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-center transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{seedLoading ? 'Generating 100 Records...' : 'Generate 100 Test Records'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Danger Zone: Factory Data Reset */}
+      <div className="bg-rose-50/70 rounded-2xl border-2 border-rose-200 shadow-xs p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-rose-950 flex items-center gap-2">
+                Danger Zone: Complete Database Wipe
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-rose-200 text-rose-800 rounded-full">
+                  Irreversible
+                </span>
+              </h3>
+              <p className="text-xs text-rose-700 mt-1 max-w-2xl">
+                Permanently purge all records across Students, Courses, Batches, Enrollments, Companies, Requirements, Applications, and Attendance. An automatic pre-wipe safety backup snapshot is saved in <code className="font-mono bg-rose-100 px-1 rounded">backups/</code> before wiping.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleWipeCompleteData}
+            disabled={wipeLoading}
+            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 self-start sm:self-center transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>{wipeLoading ? 'Wiping All Records...' : 'Wipe Complete Database'}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

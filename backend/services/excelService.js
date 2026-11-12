@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs');
 const fs = require('fs');
+const path = require('path');
 const mongoose = require('mongoose');
 const config = require('../config/config');
 const models = require('../models');
@@ -295,6 +296,159 @@ class UnifiedDatabaseService {
   // Export full workbook
   async exportFullWorkbook(res) {
     return await excelSyncService.streamFullWorkbook(res);
+  }
+
+  ensureDirs() {
+    if (!fs.existsSync(config.DB_DIR)) fs.mkdirSync(config.DB_DIR, { recursive: true });
+    if (!fs.existsSync(this.backupDir)) fs.mkdirSync(this.backupDir, { recursive: true });
+  }
+
+  async loadWorkbook() {
+    this.ensureDirs();
+    const workbook = new ExcelJS.Workbook();
+    if (fs.existsSync(this.dbPath)) {
+      await workbook.xlsx.readFile(this.dbPath);
+    }
+    return workbook;
+  }
+
+  async createBackup(prefix = 'manual') {
+    this.ensureDirs();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFileName = `Backup_${prefix}_${timestamp}.xlsx`;
+    const backupFilePath = path.join(this.backupDir, backupFileName);
+
+    if (this.isMongoConnected()) {
+      const workbook = await excelSyncService.buildWorkbook();
+      await workbook.xlsx.writeFile(backupFilePath);
+    } else if (fs.existsSync(this.dbPath)) {
+      await fs.promises.copyFile(this.dbPath, backupFilePath);
+    }
+    return backupFileName;
+  }
+
+  async listBackups() {
+    this.ensureDirs();
+    if (!fs.existsSync(this.backupDir)) return [];
+    const files = await fs.promises.readdir(this.backupDir);
+    const backupFiles = files.filter((f) => f.endsWith('.xlsx'));
+    const list = [];
+
+    for (const f of backupFiles) {
+      const fp = path.join(this.backupDir, f);
+      const stats = await fs.promises.stat(fp);
+      list.push({
+        filename: f,
+        sizeKb: Math.round(stats.size / 1024),
+        modifiedAt: stats.mtime
+      });
+    }
+
+    return list.sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
+  }
+
+  async restoreBackup(filename) {
+    this.ensureDirs();
+    const backupFilePath = path.join(this.backupDir, filename);
+    if (!fs.existsSync(backupFilePath)) {
+      throw new Error(`Backup file ${filename} not found`);
+    }
+
+    await this.createBackup('pre_restore');
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(backupFilePath);
+
+    if (this.isMongoConnected()) {
+      for (const [entityName, cfg] of Object.entries(this.entityConfig)) {
+        if (entityName === 'Admin') continue;
+        const worksheet = workbook.getWorksheet(entityName);
+        if (!worksheet) continue;
+
+        const headerRow = worksheet.getRow(1);
+        const colMap = {};
+        headerRow.eachCell((cell, colNum) => {
+          const key = this.headerToKey(cell.value);
+          if (key) colMap[colNum] = key;
+        });
+
+        const records = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const rec = {};
+          let hasData = false;
+          Object.entries(colMap).forEach(([colNum, key]) => {
+            const val = this.formatCellValue(row.getCell(parseInt(colNum, 10)));
+            rec[key] = val;
+            if (val) hasData = true;
+          });
+          if (hasData && rec[cfg.idField]) records.push(rec);
+        });
+
+        await cfg.model.deleteMany({});
+        if (records.length > 0) {
+          await cfg.model.insertMany(records);
+        }
+      }
+      excelSyncService.triggerSync();
+    } else {
+      await fs.promises.copyFile(backupFilePath, this.dbPath);
+    }
+
+    return { success: true, message: `Successfully restored database from ${filename}` };
+  }
+
+  async wipeAllData() {
+    this.ensureDirs();
+    const backupFileName = await this.createBackup('pre_wipe');
+
+    const entitiesToWipe = [
+      'Students',
+      'Courses',
+      'Batches',
+      'Enrollments',
+      'Companies',
+      'Requirements',
+      'Applications',
+      'Attendance',
+      'HR_Followups'
+    ];
+
+    if (this.isMongoConnected()) {
+      for (const entityName of entitiesToWipe) {
+        const cfg = this.entityConfig[entityName];
+        if (cfg && cfg.model) {
+          await cfg.model.deleteMany({});
+        }
+      }
+      excelSyncService.triggerSync();
+    } else {
+      if (fs.existsSync(this.dbPath)) {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(this.dbPath);
+        for (const entityName of entitiesToWipe) {
+          const worksheet = workbook.getWorksheet(entityName);
+          if (worksheet) {
+            const rowCount = worksheet.rowCount;
+            if (rowCount > 1) {
+              worksheet.spliceRows(2, rowCount - 1);
+            }
+          }
+        }
+        await workbook.xlsx.writeFile(this.dbPath);
+      }
+    }
+
+    return {
+      success: true,
+      message: 'All academy database records have been deleted successfully. A safety backup was created.',
+      backup: backupFileName
+    };
+  }
+
+  async seed100Data() {
+    const seed100 = require('../scripts/seed100');
+    return await seed100();
   }
 }
 

@@ -71,3 +71,25 @@ exports.checkWorkbookHealth = async (req, res) => {
   }
 };
 
+exports.wipeAllData = async (req, res) => {
+  try {
+    const result = await excelService.wipeAllData();
+    return res.json(result);
+  } catch (error) {
+    console.error('[WIPE ALL DATA ERROR]', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to wipe database' });
+  }
+};
+
+exports.seed100 = async (req, res) => {
+  try {
+    const result = await excelService.seed100Data();
+    return res.json(result);
+  } catch (error) {
+    console.error('[SEED 100 ERROR]', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to populate 100 records' });
+  }
+};
+
+
+
