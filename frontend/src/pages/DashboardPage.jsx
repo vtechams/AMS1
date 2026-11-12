@@ -135,15 +135,15 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 to-indigo-950 p-6 rounded-2xl text-white shadow-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950 p-6 rounded-2xl text-white shadow-lg border border-slate-800">
         <div>
-          <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold tracking-wider uppercase mb-1">
+          <div className="flex items-center gap-2 text-orange-400 text-xs font-semibold tracking-wider uppercase mb-1">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Academy Operations Central</span>
+            <span>VTECH INTEGRATED SOLUTIONS • ASPIRE • ACQUIRE • INSPIRE</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Executive Performance Dashboard</h2>
           <p className="text-xs text-slate-300 mt-1">
-            Real-time operational metrics across academy operations.
+            Comprehensive real-time tracking across admissions, training tracks, placements, and attendance.
           </p>
         </div>
         <div className="flex items-center gap-2">

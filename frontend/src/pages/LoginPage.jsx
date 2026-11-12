@@ -38,11 +38,17 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 relative z-10 backdrop-blur-xl">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-4 shadow-lg shadow-indigo-600/30">
-            AMS
+          <div className="bg-white rounded-2xl py-3 px-6 inline-block mb-4 shadow-lg shadow-black/40 border border-slate-700/30">
+            <img
+              src="/vtech-logo.png"
+              alt="VTECH Integrated Solutions"
+              className="h-10 w-auto object-contain"
+            />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Academy Management System</h2>
-          <p className="text-sm text-slate-400 mt-1">Administrator Portal</p>
+          <h2 className="text-xl font-bold text-white tracking-tight">Academy Management System</h2>
+          <p className="text-xs text-orange-400 font-semibold tracking-wider mt-1 uppercase">
+            Aspire • Acquire • Inspire
+          </p>
         </div>
 
         {error && (

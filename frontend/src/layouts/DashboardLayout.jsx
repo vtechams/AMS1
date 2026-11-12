@@ -73,13 +73,19 @@ export default function DashboardLayout() {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-slate-300 border-r border-slate-800 shadow-xl shrink-0">
         {/* Brand */}
-        <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/80 bg-slate-950/60">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-500/20">
-            AMS
+        <div className="py-3.5 px-4 border-b border-slate-800/80 bg-slate-950/70 flex flex-col items-center">
+          <div className="w-full bg-white rounded-xl py-2 px-3 shadow-md border border-slate-700/30 flex items-center justify-center">
+            <img
+              src="/vtech-logo.png"
+              alt="VTECH Integrated Solutions"
+              className="h-8 w-auto max-w-full object-contain"
+            />
           </div>
-          <div>
-            <h1 className="font-bold text-white tracking-wide text-sm leading-tight">Academy MS</h1>
-            <p className="text-[11px] text-slate-400">Management Portal</p>
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+            <span className="text-[10px] font-semibold tracking-wider text-slate-300 uppercase">
+              Academy Management System
+            </span>
           </div>
         </div>
 
@@ -131,12 +137,13 @@ export default function DashboardLayout() {
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
           <div className="relative flex flex-col w-64 bg-slate-900 text-slate-300 shadow-2xl z-10">
-            <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                  AMS
-                </div>
-                <h2 className="font-bold text-white text-sm">Academy MS</h2>
+            <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
+              <div className="bg-white rounded-lg py-1 px-2.5 shadow-sm">
+                <img
+                  src="/vtech-logo.png"
+                  alt="VTECH Integrated Solutions"
+                  className="h-6 w-auto object-contain"
+                />
               </div>
               <button onClick={() => setMobileMenuOpen(false)} className="p-1 text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -185,6 +192,13 @@ export default function DashboardLayout() {
             >
               <Menu className="w-5 h-5" />
             </button>
+            <div className="lg:hidden flex items-center">
+              <img
+                src="/vtech-logo.png"
+                alt="VTECH Integrated Solutions"
+                className="h-6 w-auto object-contain"
+              />
+            </div>
             <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
               <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
               <span>{currentDate}</span>
