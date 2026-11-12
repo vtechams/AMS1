@@ -40,6 +40,8 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [admissionPeriod, setAdmissionPeriod] = useState('daily'); // 'daily' or 'monthly'
+  const [placementPeriod, setPlacementPeriod] = useState('daily'); // 'daily' or 'monthly'
 
   const fetchDashboard = async () => {
     try {
@@ -188,95 +190,165 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary Analytics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Month-wise Admissions */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Student Admissions Trend</h3>
-              <p className="text-xs text-slate-500">Monthly student enrollments over time</p>
-            </div>
-            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[10px] font-semibold rounded-full border border-indigo-100">
-              Month-wise
-            </span>
-          </div>
-          <div className="h-64">
-            {charts.admissionChart.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={charts.admissionChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="admissionGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1e293b',
-                      borderRadius: '8px',
-                      color: '#fff',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#6366f1"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#admissionGrad)"
-                    name="Students Admitted"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No admission data recorded yet.
-              </div>
-            )}
-          </div>
-        </div>
+      {(() => {
+        const activeAdmissionData =
+          admissionPeriod === 'daily'
+            ? charts.admissionDailyChart || charts.admissionChart
+            : charts.admissionMonthlyChart || charts.admissionChart;
 
-        {/* Month-wise Placements */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Placement Success Statistics</h3>
-              <p className="text-xs text-slate-500">Candidates selected by partner companies</p>
-            </div>
-            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-semibold rounded-full border border-emerald-100">
-              Selected
-            </span>
-          </div>
-          <div className="h-64">
-            {charts.placementChart.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={charts.placementChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#1e293b',
-                      borderRadius: '8px',
-                      color: '#fff',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} name="Selections" barSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                No placement selections recorded yet.
+        const activePlacementData =
+          placementPeriod === 'daily'
+            ? charts.placementDailyChart || charts.placementChart
+            : charts.placementMonthlyChart || charts.placementChart;
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Student Admissions Trend */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Student Admissions Trend</h3>
+                  <p className="text-xs text-slate-500">
+                    {admissionPeriod === 'daily'
+                      ? 'Daily student enrollments across the last 15 days'
+                      : 'Monthly student enrollments over time'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setAdmissionPeriod('daily')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer ${
+                      admissionPeriod === 'daily'
+                        ? 'bg-white text-indigo-700 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Last 15 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdmissionPeriod('monthly')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer ${
+                      admissionPeriod === 'monthly'
+                        ? 'bg-white text-indigo-700 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Monthly Trend
+                  </button>
+                </div>
               </div>
-            )}
+              <div className="h-64">
+                {activeAdmissionData && activeAdmissionData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={activeAdmissionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="admissionGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1e293b',
+                          borderRadius: '8px',
+                          color: '#fff',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#6366f1"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#admissionGrad)"
+                        name="Students Admitted"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                    No admission data recorded yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Placement Success Statistics */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Placement Success Statistics</h3>
+                  <p className="text-xs text-slate-500">
+                    {placementPeriod === 'daily'
+                      ? 'Candidates selected across the last 15 days'
+                      : 'Monthly candidate selections by partner companies'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setPlacementPeriod('daily')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer ${
+                      placementPeriod === 'daily'
+                        ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Last 15 Days
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPlacementPeriod('monthly')}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer ${
+                      placementPeriod === 'monthly'
+                        ? 'bg-white text-emerald-700 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Monthly Trend
+                  </button>
+                </div>
+              </div>
+              <div className="h-64">
+                {activePlacementData && activePlacementData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={activePlacementData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#1e293b',
+                          borderRadius: '8px',
+                          color: '#fff',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <Bar
+                        dataKey="count"
+                        fill="#10b981"
+                        radius={[4, 4, 0, 0]}
+                        name="Selections"
+                        barSize={placementPeriod === 'daily' ? 16 : 32}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                    No placement selections recorded yet.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Distribution Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -310,13 +310,39 @@ async function seed100() {
   await models.HR_Followups.deleteMany({});
 
   const courseList = ['CRS-101', 'CRS-102', 'CRS-103', 'CRS-104'];
-  const batchList = ['BAT-201', 'BAT-202', 'BAT-203', 'BAT-204'];
   const courseBatchMap = {
     'CRS-101': 'BAT-201',
     'CRS-102': 'BAT-202',
     'CRS-103': 'BAT-203',
     'CRS-104': 'BAT-204'
   };
+
+  // 15 days pool (Nov 01 to Nov 15) + past months (May to Oct) for realistic 15-day and monthly charts
+  const admissionDatesPool = [
+    // 15 days in November
+    '2026-11-01', '2026-11-01',
+    '2026-11-02', '2026-11-02', '2026-11-02',
+    '2026-11-03',
+    '2026-11-04', '2026-11-04', '2026-11-04', '2026-11-04',
+    '2026-11-05', '2026-11-05',
+    '2026-11-06', '2026-11-06', '2026-11-06',
+    '2026-11-07', '2026-11-07',
+    '2026-11-08', '2026-11-08', '2026-11-08', '2026-11-08',
+    '2026-11-09', '2026-11-09', '2026-11-09',
+    '2026-11-10', '2026-11-10', '2026-11-10', '2026-11-10', '2026-11-10',
+    '2026-11-11', '2026-11-11', '2026-11-11', '2026-11-11',
+    '2026-11-12', '2026-11-12', '2026-11-12',
+    '2026-11-13', '2026-11-13',
+    '2026-11-14',
+    '2026-11-15', '2026-11-15', '2026-11-15',
+    // Previous months for smooth monthly growth
+    '2026-05-12', '2026-05-25',
+    '2026-06-04', '2026-06-18', '2026-06-28',
+    '2026-07-03', '2026-07-14', '2026-07-22', '2026-07-31',
+    '2026-08-04', '2026-08-12', '2026-08-20', '2026-08-28', '2026-08-31',
+    '2026-09-02', '2026-09-10', '2026-09-17', '2026-09-24', '2026-09-29', '2026-09-30',
+    '2026-10-02', '2026-10-08', '2026-10-15', '2026-10-21', '2026-10-26', '2026-10-31'
+  ];
 
   const studentsToInsert = [];
   const enrollmentsToInsert = [];
@@ -333,7 +359,7 @@ async function seed100() {
     const phone = `+91 98${String(10000000 + (i * 7919) % 89999999).substring(0, 8)}`;
     const city = CITIES[i % CITIES.length];
     const degree = DEGREES[i % DEGREES.length];
-    const admissionDate = ADMISSION_DATES[i % ADMISSION_DATES.length];
+    const admissionDate = admissionDatesPool[(i - 1) % admissionDatesPool.length];
 
     // 65% Placement Admission, 35% Training Admission
     const isPlacement = i % 10 < 7;
@@ -396,8 +422,8 @@ async function seed100() {
   await models.Enrollments.insertMany(enrollmentsToInsert);
   console.log(`[SEED 100] Inserted ${studentsToInsert.length} students and enrollments.`);
 
-  // 5. Generate ~50 Placement Applications
-  console.log('[SEED 100] Generating 50 Placement Applications...');
+  // 5. Generate Placement Applications with Selections across ALL 15 dates + past months
+  console.log('[SEED 100] Generating 60 Placement Applications across the 15 dates & past months...');
   const applicationsToInsert = [];
   const reqList = ['REQ-501', 'REQ-502', 'REQ-503', 'REQ-504'];
   const reqMap = {
@@ -411,25 +437,56 @@ async function seed100() {
     (s) => s.admission_category === 'Placement Admission' && s.student_status === 'Active'
   );
 
-  const APP_RESULTS = [
-    'Applied',
-    'Shortlisted',
-    'Interview Scheduled',
-    'Interview Attended',
-    'Selected',
-    'Selected',
-    'Rejected',
-    'Result Pending'
+  // Dedicated selection dates: every single day from 2026-11-01 to 2026-11-15 has selections!
+  const selectionDatesPool = [
+    '2026-11-01',
+    '2026-11-02', '2026-11-02',
+    '2026-11-03',
+    '2026-11-04', '2026-11-04', '2026-11-04',
+    '2026-11-05', '2026-11-05',
+    '2026-11-06', '2026-11-06',
+    '2026-11-07',
+    '2026-11-08', '2026-11-08', '2026-11-08', '2026-11-08',
+    '2026-11-09', '2026-11-09',
+    '2026-11-10', '2026-11-10', '2026-11-10',
+    '2026-11-11', '2026-11-11',
+    '2026-11-12', '2026-11-12',
+    '2026-11-13',
+    '2026-11-14', '2026-11-14',
+    '2026-11-15',
+    // Past months selections
+    '2026-06-20', '2026-07-15', '2026-07-28', '2026-08-14', '2026-08-26',
+    '2026-09-12', '2026-09-25', '2026-10-10', '2026-10-22', '2026-10-30'
   ];
 
-  for (let j = 0; j < Math.min(50, placementEligibleStudents.length); j++) {
+  let selectDateIdx = 0;
+
+  for (let j = 0; j < Math.min(60, placementEligibleStudents.length); j++) {
     const student = placementEligibleStudents[j];
     const appId = `APP-${601 + j}`;
     const reqId = reqList[j % reqList.length];
     const reqInfo = reqMap[reqId];
-    const result = APP_RESULTS[j % APP_RESULTS.length];
-    const appDate = `2026-10-${String(10 + (j % 18)).padStart(2, '0')}`;
-    const interviewDate = `2026-11-${String(2 + (j % 12)).padStart(2, '0')}`;
+
+    // Every 2nd application is a successful Selection on one of the 15 dates!
+    let result = 'Applied';
+    let interviewDate = '';
+    let appDate = `2026-10-${String(10 + (j % 18)).padStart(2, '0')}`;
+
+    if (j % 2 === 0 && selectDateIdx < selectionDatesPool.length) {
+      result = 'Selected';
+      interviewDate = selectionDatesPool[selectDateIdx];
+      appDate = interviewDate < '2026-11-01' ? '2026-06-01' : '2026-10-20';
+      selectDateIdx++;
+    } else if (j % 4 === 1) {
+      result = 'Interview Scheduled';
+      interviewDate = `2026-11-${String(10 + (j % 5)).padStart(2, '0')}`;
+    } else if (j % 4 === 3) {
+      result = 'Interview Attended';
+      interviewDate = `2026-11-${String(2 + (j % 8)).padStart(2, '0')}`;
+    } else if (j % 8 === 7) {
+      result = 'Rejected';
+      interviewDate = `2026-11-${String(3 + (j % 5)).padStart(2, '0')}`;
+    }
 
     applicationsToInsert.push({
       application_id: appId,
@@ -441,10 +498,10 @@ async function seed100() {
       job_role: reqInfo.job_role,
       application_date: appDate,
       resume_submission_status: 'Submitted',
-      interview_date: result === 'Applied' ? '' : interviewDate,
+      interview_date: interviewDate,
       interview_round: result === 'Selected' ? 'Final HR Round' : 'Technical Round 1',
       interview_attendance: result === 'Applied' ? 'Pending' : 'Attended',
-      hr_feedback: result === 'Selected' ? 'Recommended for release of offer letter.' : 'Profile under evaluation.',
+      hr_feedback: result === 'Selected' ? 'Offer letter released by partner company.' : 'Profile under evaluation.',
       result,
       follow_up_date: '2026-11-20',
       remarks: 'Automated campus application profile.',
@@ -454,7 +511,7 @@ async function seed100() {
   }
 
   await models.Applications.insertMany(applicationsToInsert);
-  console.log(`[SEED 100] Inserted ${applicationsToInsert.length} placement applications.`);
+  console.log(`[SEED 100] Inserted ${applicationsToInsert.length} placement applications (${selectDateIdx} Selected across 15 dates).`);
 
   // 6. Generate 15 Days of Attendance records for all 100 students (1,500 records)
   console.log('[SEED 100] Generating 15 Days of Attendance records for all 100 students (1,500 total records)...');

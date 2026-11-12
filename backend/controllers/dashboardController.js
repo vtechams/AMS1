@@ -51,6 +51,37 @@ exports.getDashboardStats = async (req, res) => {
       (a) => a.result === 'Result Pending' || a.result === 'Interview Attended'
     ).length;
 
+    // Last 15 Dates Window (2026-11-01 to 2026-11-15)
+    const last15Dates = [
+      '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05',
+      '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10',
+      '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15'
+    ];
+
+    const formatDayLabel = (d) => {
+      const parts = d.split('-');
+      return `Nov ${parts[2]}`;
+    };
+
+    // 1. Daily Admissions (Last 15 Dates)
+    const dailyAdmissionsMap = {};
+    last15Dates.forEach((d) => (dailyAdmissionsMap[d] = 0));
+    students.forEach((s) => {
+      if (s.admission_date) {
+        const d = s.admission_date.substring(0, 10);
+        if (dailyAdmissionsMap[d] !== undefined) {
+          dailyAdmissionsMap[d]++;
+        }
+      }
+    });
+
+    const admissionDailyChart = last15Dates.map((d) => ({
+      date: d,
+      month: formatDayLabel(d),
+      label: formatDayLabel(d),
+      count: dailyAdmissionsMap[d]
+    }));
+
     // Month-wise admission statistics
     const monthWiseAdmissions = {};
     students.forEach((s) => {
@@ -59,9 +90,31 @@ exports.getDashboardStats = async (req, res) => {
         monthWiseAdmissions[month] = (monthWiseAdmissions[month] || 0) + 1;
       }
     });
-    const admissionChart = Object.keys(monthWiseAdmissions)
+    const admissionMonthlyChart = Object.keys(monthWiseAdmissions)
       .sort()
-      .map((m) => ({ month: m, count: monthWiseAdmissions[m] }));
+      .map((m) => ({ month: m, label: m, count: monthWiseAdmissions[m] }));
+
+    // 2. Daily Placements (Last 15 Dates)
+    const dailyPlacementsMap = {};
+    last15Dates.forEach((d) => (dailyPlacementsMap[d] = 0));
+    applications
+      .filter((a) => a.result === 'Selected')
+      .forEach((a) => {
+        const dateStr = a.interview_date || a.updated_at || a.application_date;
+        if (dateStr) {
+          const d = dateStr.substring(0, 10);
+          if (dailyPlacementsMap[d] !== undefined) {
+            dailyPlacementsMap[d]++;
+          }
+        }
+      });
+
+    const placementDailyChart = last15Dates.map((d) => ({
+      date: d,
+      month: formatDayLabel(d),
+      label: formatDayLabel(d),
+      count: dailyPlacementsMap[d]
+    }));
 
     // Month-wise placement statistics (Applications Selected)
     const monthWisePlacements = {};
@@ -74,9 +127,13 @@ exports.getDashboardStats = async (req, res) => {
           monthWisePlacements[month] = (monthWisePlacements[month] || 0) + 1;
         }
       });
-    const placementChart = Object.keys(monthWisePlacements)
+    const placementMonthlyChart = Object.keys(monthWisePlacements)
       .sort()
-      .map((m) => ({ month: m, count: monthWisePlacements[m] }));
+      .map((m) => ({ month: m, label: m, count: monthWisePlacements[m] }));
+
+    // Default primary charts to 15-day level view
+    const admissionChart = admissionDailyChart;
+    const placementChart = placementDailyChart;
 
     // Course-wise student distribution
     const courseMap = {};
@@ -173,7 +230,11 @@ exports.getDashboardStats = async (req, res) => {
       },
       charts: {
         admissionChart,
+        admissionDailyChart,
+        admissionMonthlyChart,
         placementChart,
+        placementDailyChart,
+        placementMonthlyChart,
         courseDistributionChart,
         batchDistributionChart,
         applicationStatusChart
