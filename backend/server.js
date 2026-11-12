@@ -98,7 +98,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-const mongoose = require('mongoose');
 const excelSyncService = require('./services/excelSyncService');
 
 // Start Server after connecting to MongoDB Atlas & syncing Excel database
