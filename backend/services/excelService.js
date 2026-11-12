@@ -24,6 +24,8 @@ class UnifiedDatabaseService {
       HR_Followups: { model: models.HR_Followups, idField: 'followup_id', prefix: 'FLW', startNum: 801, statusField: 'status' },
       Admin: { model: models.Admin, idField: 'admin_id', prefix: 'ADM', startNum: 1, statusField: 'status' }
     };
+
+    this.ensureDirs();
   }
 
   isMongoConnected() {
@@ -301,6 +303,13 @@ class UnifiedDatabaseService {
   ensureDirs() {
     if (!fs.existsSync(config.DB_DIR)) fs.mkdirSync(config.DB_DIR, { recursive: true });
     if (!fs.existsSync(this.backupDir)) fs.mkdirSync(this.backupDir, { recursive: true });
+    if (!fs.existsSync(this.dbPath) && config.TEMPLATE_DB_PATH && fs.existsSync(config.TEMPLATE_DB_PATH)) {
+      try {
+        fs.copyFileSync(config.TEMPLATE_DB_PATH, this.dbPath);
+      } catch (err) {
+        console.warn('[EXCEL SERVICE] Notice initializing database in /tmp:', err.message);
+      }
+    }
   }
 
   async loadWorkbook() {

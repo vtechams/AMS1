@@ -10,7 +10,22 @@ const mongoose = require('mongoose');
 const app = require('../backend/server');
 const config = require('../backend/config/config');
 
-let isConnected = false;
+let cachedConnection = null;
+
+async function connectToMongo() {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+  if (!cachedConnection) {
+    cachedConnection = mongoose.connect(config.MONGODB_URI, {
+      serverSelectionTimeoutMS: 4000,
+    }).catch(err => {
+      cachedConnection = null;
+      console.warn('[MONGODB VERCEL WARNING] Atlas connection:', err.message);
+    });
+  }
+  return cachedConnection;
+}
 
 module.exports = async (req, res) => {
   // Normalize request URLs so Express routes match correctly regardless of Vercel rewrite structure
@@ -21,16 +36,11 @@ module.exports = async (req, res) => {
     req.originalUrl = req.url;
   }
 
-  // Ensure MongoDB Atlas connection in serverless environment
-  if (!isConnected && mongoose.connection.readyState !== 1) {
-    try {
-      await mongoose.connect(config.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000,
-      });
-      isConnected = true;
-    } catch (err) {
-      console.error('[MONGODB VERCEL CONNECTION ERROR]', err.message);
-    }
+  // Attempt connection without hanging the request if IP whitelist is pending
+  try {
+    await connectToMongo();
+  } catch (err) {
+    // Non-blocking: will operate seamlessly on writable /tmp Excel DB
   }
 
   return app(req, res);
