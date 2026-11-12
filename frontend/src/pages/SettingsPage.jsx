@@ -198,11 +198,10 @@ export default function SettingsPage() {
 
       {message.text && (
         <div
-          className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-medium ${
-            message.type === 'success'
+          className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-medium ${message.type === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}
+            }`}
         >
           {message.type === 'success' ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />

@@ -28,6 +28,29 @@ class UnifiedDatabaseService {
     this.ensureDirs();
   }
 
+  async ensureMongoConnected() {
+    if (mongoose.connection && mongoose.connection.readyState === 1) {
+      return true;
+    }
+    if (mongoose.connection && mongoose.connection.readyState === 2) {
+      try {
+        await mongoose.connection.asPromise();
+        return mongoose.connection.readyState === 1;
+      } catch (err) {
+        return false;
+      }
+    }
+    try {
+      await mongoose.connect(config.MONGODB_URI, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      return mongoose.connection && mongoose.connection.readyState === 1;
+    } catch (err) {
+      console.warn('[MONGO ATLAS AUTO-CONNECT ERROR]', err.message);
+      return false;
+    }
+  }
+
   isMongoConnected() {
     return mongoose.connection && mongoose.connection.readyState === 1;
   }
@@ -90,6 +113,7 @@ class UnifiedDatabaseService {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
 
+    await this.ensureMongoConnected();
     if (this.isMongoConnected()) {
       return await cfg.model.find({}).lean();
     }
@@ -108,6 +132,7 @@ class UnifiedDatabaseService {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
 
+    await this.ensureMongoConnected();
     if (this.isMongoConnected()) {
       return await cfg.model.findOne({ [cfg.idField]: id }).lean();
     }
@@ -150,6 +175,7 @@ class UnifiedDatabaseService {
     newRecord.created_at = newRecord.created_at || now;
     newRecord.updated_at = now;
 
+    await this.ensureMongoConnected();
     if (this.isMongoConnected()) {
       const doc = await cfg.model.create(newRecord);
       excelSyncService.triggerSync();
@@ -189,6 +215,7 @@ class UnifiedDatabaseService {
     delete cleanUpdates.__v;
     cleanUpdates.updated_at = new Date().toISOString();
 
+    await this.ensureMongoConnected();
     if (this.isMongoConnected()) {
       const updatedDoc = await cfg.model.findOneAndUpdate(
         { [cfg.idField]: id },
@@ -245,9 +272,40 @@ class UnifiedDatabaseService {
     const cfg = this.entityConfig[sheetName];
     if (!cfg) throw new Error(`Unknown entity: ${sheetName}`);
 
+    await this.ensureMongoConnected();
     if (this.isMongoConnected()) {
       const res = await cfg.model.findOneAndDelete({ [cfg.idField]: id });
       if (!res) throw new Error(`Record with ID ${id} not found in ${sheetName}`);
+
+      // Also clean up from local Excel cache file if present
+      try {
+        if (fs.existsSync(this.dbPath)) {
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.readFile(this.dbPath);
+          const worksheet = workbook.getWorksheet(sheetName);
+          if (worksheet) {
+            let targetRowNumber = null;
+            const headerRow = worksheet.getRow(1);
+            let idColNum = null;
+            headerRow.eachCell((cell, colNum) => {
+              if (this.headerToKey(cell.value) === cfg.idField) idColNum = colNum;
+            });
+            worksheet.eachRow((row, rowNumber) => {
+              if (rowNumber === 1) return;
+              if (String(this.formatCellValue(row.getCell(idColNum))).toLowerCase() === String(id).toLowerCase()) {
+                targetRowNumber = rowNumber;
+              }
+            });
+            if (targetRowNumber) {
+              worksheet.spliceRows(targetRowNumber, 1);
+              await workbook.xlsx.writeFile(this.dbPath);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[EXCEL CACHE DELETE NOTICE]', err.message);
+      }
+
       excelSyncService.triggerSync();
       return { success: true, message: `Record with ID ${id} deleted successfully` };
     }

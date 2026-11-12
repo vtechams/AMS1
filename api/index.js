@@ -10,21 +10,26 @@ const mongoose = require('mongoose');
 const app = require('../backend/server');
 const config = require('../backend/config/config');
 
-let cachedConnection = null;
-
 async function connectToMongo() {
-  if (mongoose.connection.readyState === 1) {
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
     return mongoose.connection;
   }
-  if (!cachedConnection) {
-    cachedConnection = mongoose.connect(config.MONGODB_URI, {
-      serverSelectionTimeoutMS: 4000,
-    }).catch(err => {
-      cachedConnection = null;
-      console.warn('[MONGODB VERCEL WARNING] Atlas connection:', err.message);
-    });
+  if (mongoose.connection && mongoose.connection.readyState === 2) {
+    try {
+      await mongoose.connection.asPromise();
+      return mongoose.connection;
+    } catch (err) {
+      console.warn('[MONGODB VERCEL] In-flight connection wait error:', err.message);
+    }
   }
-  return cachedConnection;
+  try {
+    await mongoose.connect(config.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    return mongoose.connection;
+  } catch (err) {
+    console.warn('[MONGODB VERCEL WARNING] Atlas connection:', err.message);
+  }
 }
 
 module.exports = async (req, res) => {
@@ -36,11 +41,11 @@ module.exports = async (req, res) => {
     req.originalUrl = req.url;
   }
 
-  // Attempt connection without hanging the request if IP whitelist is pending
+  // Ensure DB connection is active before routing the request
   try {
     await connectToMongo();
   } catch (err) {
-    // Non-blocking: will operate seamlessly on writable /tmp Excel DB
+    // Non-blocking fallback
   }
 
   return app(req, res);
